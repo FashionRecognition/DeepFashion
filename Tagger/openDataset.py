@@ -1,9 +1,10 @@
+# Extract all images from
 import zipfile
 
+archive = zipfile.ZipFile(r'C:\Users\mike_000\Downloads\img.zip')
 
-with open(r'C:\Users\mike_000\AppData\Local\Temp\list_attr_img.txt', 'r') as labels:
-    labels.read()
-    labels.read()
+for file in archive.namelist():
+    print(file)
+    if file.startswith('img/'):
+        archive.extract(file, r'C:\Users\mike_000\Fashion')
 
-    for label in labels:
-        print(label)
