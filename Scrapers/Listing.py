@@ -4,7 +4,6 @@ class Listing(object):
     name = None
 
 
-
     def get_json(self):
         return {
             'url': self.url,

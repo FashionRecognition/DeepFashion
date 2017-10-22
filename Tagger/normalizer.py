@@ -1,9 +1,20 @@
-import numpy as np
 from PIL import Image
 import shutil
 import re
 
 import os
+
+import zipfile
+
+
+def unwrap():
+    archive = zipfile.ZipFile(r'C:\Users\mike_000\Downloads\img.zip')
+
+    for file in archive.namelist():
+        print(file)
+        if file.startswith('img/'):
+            archive.extract(file, r'C:\Users\mike_000\Fashion')
+
 root_directory = r'C:\Users\mike_000\Subdir\\'
 indir = 'Fashion_Subset'
 outdir = 'Fashion_Subset_Processed'

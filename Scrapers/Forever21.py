@@ -11,9 +11,6 @@ client = MongoClient('localhost', 27017)
 db = client.aggregation
 
 
-# This is a partially converted skeleton for scraping Forever21.
-
-
 class Forever21Spider(CrawlSpider):
     name = "forever21"
     store_url = "https://www.forever21.com"
