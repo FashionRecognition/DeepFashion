@@ -2,18 +2,13 @@ import re
 
 from scrapy.spiders import CrawlSpider
 from scrapy.http import Request
-from scrapy.selector import HtmlXPathSelector
+from scrapy import Selector
 
 from Scrapers.Listing import Listing
-
 from pymongo import MongoClient
-
-import logging
 
 client = MongoClient('localhost', 27017)
 db = client.aggregation
-
-logging.getLogger('scrapy').setLevel(logging.WARNING)
 
 
 # This is a partially converted skeleton for scraping Forever21.
@@ -34,14 +29,13 @@ class Forever21Spider(CrawlSpider):
         'parse_category_next': '//div[@id="h1Title"]/',
 
         'parse_product_name': 'id(\'h1Title\')/text()[1]',
-        'parse_product_price': 'id(\'ItemPrice\')/child::node()[1]',
+        'parse_product_price': 'id(\'ItemPrice\')/child::node()',
         'parse_product_color': 'id(\'selectedColorName\')/child::node()'
-
     }
 
     def extract_xpath(self, hxs, name_xpath):
         xpath = self.xpaths[name_xpath]
-        return hxs.select(xpath).extract()
+        return hxs.xpath(xpath).extract()
 
     # def parse(self, response):
     #     hxs = HtmlXPathSelector(response)
@@ -56,21 +50,20 @@ class Forever21Spider(CrawlSpider):
     #         yield Request(next_page, callback=self.parse)
 
     def parse(self, response):
-        if response.url == self.store_url + '/':
-            return
-
-        hxs = HtmlXPathSelector(response)
+        hxs = Selector(response)
         item = Listing()
 
         # Source
-        item.source = self.store_url
+        item.url = self.store_url
 
         # Product Name
         item.name = self.extract_xpath(hxs, 'parse_product_name')[0]
-        print(self.extract_xpath(hxs, 'parse_product_price'))
-        item.price = self.extract_xpath(hxs, 'parse_product_price')[0]
-
-        print(item.price)
+        item.price = Request(response.url, callback=self.parse_price)
 
         # Actually insert to database
         db.records.insert_one(item.get_json())
+
+    def parse_price(self, response):
+        selection = Selector(response)
+        print(self.extract_xpath(selection, 'parse_product_price'))
+        return self.extract_xpath(selection, 'parse_product_price')
