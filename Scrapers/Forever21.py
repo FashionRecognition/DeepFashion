@@ -23,7 +23,7 @@ class Forever21Spider(CrawlSpider):
     name = "forever21"
     store_url = "https://www.forever21.com"
     start_urls = [
-        store_url + "/Catalog/Product/21men/mens-tops/2000216764",
+        store_url + "/us/shop/Catalog/Product/21men/mens-tops/2000216764",
     ]
 
     # This extracts a float number from a string
@@ -33,14 +33,10 @@ class Forever21Spider(CrawlSpider):
         'parse_product': '//div[@id="products"]',
         'parse_category_next': '//div[@id="h1Title"]/',
 
-        'parse_product_product_name': 'id(\'h1Title\')/text()[1]',
+        'parse_product_name': 'id(\'h1Title\')/text()[1]',
+        'parse_product_price': 'id(\'ItemPrice\')/child::node()[1]',
+        'parse_product_color': 'id(\'selectedColorName\')/child::node()'
 
-    }
-
-    AVAIL_CHOICES = {
-        # Add more entries here:
-        'name': Listing.name,
-        'url': Listing.source
     }
 
     def extract_xpath(self, hxs, name_xpath):
@@ -70,11 +66,11 @@ class Forever21Spider(CrawlSpider):
         item.source = self.store_url
 
         # Product Name
-        tmp = self.extract_xpath(hxs, 'parse_product_product_name')[0]
-        print(tmp)
-        # if len(tmp) != 1:
-        #     raise ValueError('No Product Name')
-        # item.name = tmp[0]
+        item.name = self.extract_xpath(hxs, 'parse_product_name')[0]
+        print(self.extract_xpath(hxs, 'parse_product_price'))
+        item.price = self.extract_xpath(hxs, 'parse_product_price')[0]
+
+        print(item.price)
 
         # Actually insert to database
         db.records.insert_one(item.get_json())
