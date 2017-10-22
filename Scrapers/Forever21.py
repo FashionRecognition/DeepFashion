@@ -1,6 +1,6 @@
 import re
 
-from scrapy.contrib.spiders import CrawlSpider
+from scrapy.spiders import CrawlSpider
 from scrapy.http import Request
 from scrapy.selector import HtmlXPathSelector
 
@@ -17,16 +17,17 @@ db = client.aggregation
 
 class Forever21Spider(CrawlSpider):
     name = "forever21"
-    store_url = "https://www.forever21.com/us/shop"
+    store_url = "https://www.forever21.com"
     start_urls = [
-        "/us/shop/Catalog/Category/21men/mens-tops",
+        store_url + "/us/shop/Catalog/Category/21men/mens-tops",
     ]
 
     # This extracts a float number from a string
     re_float = re.compile('[-+]?[0-9]*\\.?[0-9]+')
 
     xpaths = {
-        'parse_category_next': '//div[@class="fr"]/',
+        'parse_product': '//div[@id="products"]',
+        'parse_category_next': '//div[@id="h1Title"]/',
 
         'parse_product_product_name': '//span[@itemprop="name"]/text()',
         'parse_product_product_number_deal': '//div[@id="pd_deal"]//input[@name="pID"]/@value',
@@ -56,14 +57,15 @@ class Forever21Spider(CrawlSpider):
     def parse(self, response):
         hxs = HtmlXPathSelector(response)
         products = hxs.select(self.xpaths['parse_product']).extract()
+        print(products)
         for product in products:
             category_page = self.store_url + product
             yield Request(category_page, callback=self.parse_product)
-
-        next_page = hxs.select(self.xpaths['parse_category_next']).extract()
-        if next_page:
-            next_page = self.store_url + str(next_page[0])
-            yield Request(next_page, callback=self.parse)
+        #
+        # next_page = hxs.select(self.xpaths['parse_category_next']).extract()
+        # if next_page:
+        #     next_page = self.store_url + str(next_page[0])
+        #     yield Request(next_page, callback=self.parse)
 
     def parse_product(self, response):
         if response.url == self.store_url + '/':
