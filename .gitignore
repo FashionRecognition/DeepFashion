@@ -3,3 +3,7 @@
 *.pyc
 .idea/
 api_key.txt
+
+Tagger/data
+Tagger/processed
+Tagger/sources
