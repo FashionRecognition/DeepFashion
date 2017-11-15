@@ -3,6 +3,7 @@ import shutil
 import re
 import os
 import zipfile
+import numpy as np
 
 # Run once before training the network to prepare the dataset
 
@@ -81,3 +82,57 @@ if not os.path.exists(df_womens['processed']):
             if not os.path.exists(os.path.dirname(fullname_out)):
                 os.mkdir(os.path.dirname(fullname_out))
             processed_im.save(fullname_out)
+
+
+# Create numpy partition of dataset
+trainDict = {}
+tempDict = {}
+
+trainImages = []
+validationImages = []
+testImages = []
+
+if not os.path.exists('./sources/df_women_partition.npy'):
+    with open('./sources/list_eval_partition.txt') as input_file:
+        for line in input_file:
+            tok = line.split()
+
+            if tok[1] == "train":
+                trainImages.append(tok[0])
+            if tok[1] == "val":
+                validationImages.append(tok[0])
+            if tok[1] == "test":
+                testImages.append(tok[0])
+
+        print("Length of the training set ")
+        print(len(trainImages))
+
+        print("Length of validation set")
+        print(len(validationImages))
+
+        print("Length of Test Set ")
+        print(len(testImages))
+
+    with open('./sources/list_attr_img.txt') as input_file:
+        for line in input_file:
+            tok = line.split()
+            tempDict[tok[0]] = np.clip(np.array(re.split(' +', line)[1:]).astype(int), 0, 1)
+
+        print("Length of the Training images only Dictionary")
+        print(len(tempDict))
+
+        for image in trainImages:
+            trainDict[image] = tempDict.get(image)
+
+        print("Length of the Final Training Dictionary")
+        print(len(trainDict))
+
+        np.save('./sources/df_women_partition.npy', tempDict)
+
+    # Create a reduced second dictionary with only images
+    for image in trainImages:
+        trainDict[image] = tempDict.get(image)
+    np.save('./sources/df_women_training.npy', trainDict)
+    print("Reduced Dictionary is Saved  ")
+    print("Length of the Final Training Dictionary")
+    print(len(trainDict))

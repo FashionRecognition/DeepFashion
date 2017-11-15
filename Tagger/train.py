@@ -1,45 +1,28 @@
+import numpy as np
+import random
 import re
-import zipfile
+from PIL import Image
+import tensorflow as tf
 
-c = 0;
-list = []
-trainImages = []
-d = set()
-tok = []
-trainDict = {}
-tempDict = {}
-validationImages = []
-testImages = []
+from Tagger.FashionNet import FashionNet
 
-with open('list_eval_partition.txt') as input_file:
-    for line in input_file:
-        tok = line.split()
-        if (tok[1] == "train"):
-            trainImages.append(tok[0])
-        if (tok[1] == "val"):
-            validationImages.append(tok[0])
-        if (tok[1] == "test"):
-            testImages.append(tok[0])
-    print("Length of the training set ")
-    print(len(trainImages))
+read_dictionary = np.load('./sources/df_women_partition.npy').item()
+print(read_dictionary['img/1981_Graphic_Ringer_Tee/img_00000003.jpg'])  # displays "world"
 
-    print("Length of validation set")
-    print(len(validationImages))
-    print("Length of Test Set ")
-    print(len(testImages))
+network = FashionNet()
 
-with open('list_attr_img.txt') as input_file:
-    for line in input_file:
-        tok = line.split()
-        tempDict[tok[0]] = tok[1]
-    print("Length of the Training images only Dictionary")
-    print(len(tempDict))
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
 
-    for image in trainImages:
-        trainDict[image] = tempDict.get(image)
+    trainDict = np.load('./sources/df_women_training.npy').item()
+    for key, value in sorted(trainDict.items(), key=lambda x: random.random()):
 
-    print("Length of the Final Training Dictionary")
-    print(len(trainDict))
+        x = np.array(Image.open(r'.\processed\\' + re.sub('[jpg]{3}$', 'png', key)))
+        xLabel = trainDict["img/1981_Graphic_Ringer_Tee/img_00000003.jpg"]
 
-    # for i in range(5):
-    # print(trainDict.values())
+        l = sess.run([network.loss], feed_dict={
+            network.stimulus: x.reshape((1, 224, 224, 3)),
+            network.expected: xLabel
+        })
+
+        print(l)

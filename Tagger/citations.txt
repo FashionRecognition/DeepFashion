@@ -13,3 +13,7 @@
  month = June,
  year = {2016}
  }
+
+The deep convolutional network is partitioned into VGG16 and an addon.
+The VGG16 portion is adapted from:
+https://github.com/huyng/tensorflow-vgg
