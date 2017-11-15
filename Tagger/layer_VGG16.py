@@ -30,7 +30,7 @@ def pool(input_tensor, name, kh, kw, dh, dw):
 
 
 def loss(logits, onehot_labels):
-    xentropy = tf.nn.softmax_cross_entropy_with_logits(logits, onehot_labels, name='xentropy')
+    xentropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=onehot_labels, name='xentropy')
     loss = tf.reduce_mean(xentropy, name='loss')
     return loss
 
