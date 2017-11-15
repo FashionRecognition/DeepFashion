@@ -10,6 +10,6 @@ Local Setup:
 1. Install Python 3.x and MongoDB.  
 2. Run mongod.exe to start a local mongo server.  
 3. Run main.py to start the local python server.  
-4. Send a POST with an image to 127.0.0.1:80 (use Postman or script).  
+4. Send a POST with an image to 127.0.0.1:8888 (use Postman or script).  
 
-To send a request to the production server, send a POST with an image to 138.197.9.186:80. The response is JSON formatted product listings.
+To send a request to the production server, send a POST with an image to 138.197.9.186:80. The response is JSON formatted product listings. Not implemented.
