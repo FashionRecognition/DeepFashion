@@ -1,6 +1,7 @@
 import requests
 import sys
 import time
+from random import random
 
 from multiprocessing import Queue, Process, cpu_count
 
@@ -41,12 +42,15 @@ def scrape(label, tag):
     for proc in pool:
         proc.start()
 
-    while any([proc.is_alive() for proc in pool]):
+    while any([proc.is_alive() for proc in pool]) and page_queue.qsize() != 0:
 
         # Show status
         sys.stdout.write("\r\x1b[KCollecting: " + str(199 - page_queue.qsize()) + '/' + str(199))
         sys.stdout.flush()
         time.sleep(0.5)
+
+    # Print a newline to stdout
+    print()
 
     # Once the pool of pages to scrape has been exhausted, each thread will die
     # Once the threads are dead, this terminates all threads and the program is complete
@@ -89,7 +93,7 @@ def scrape_page(page_number, label, tag):
 
         # Some elements are not for products. Just ignore the error
         try:
-            # Isolate the image div
+            # Isolate the image div. This only downloads the raw html
             element = bs4.BeautifulSoup(str(listing), "lxml").div.div.a.img
 
             # Don't write elements that match the ignore list
@@ -122,6 +126,6 @@ def scrape_page(page_number, label, tag):
 # Only call scrape when invoked from main. This prevents forked processes from calling it
 if __name__ == '__main__':
 
-    for label, tags in labels.items():
-        for tag in tags:
+    for label, tags in sorted(labels.items(), key=lambda x: random()):
+        for tag in sorted(tags, key=lambda x: random()):
             scrape(label, tag)
