@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage.io import imread
 
+from PIL import Image
+
 # Sobel filtering
 from scipy import ndimage as ndi
 from skimage import filters
@@ -59,10 +61,36 @@ def felzenszwalb_segment(path):
     plt.imshow(felzenszwalb(imread(path), scale=4.0, sigma=0.4, min_size=1500))
     plt.show()
 
-# for root, dirs, filenames in os.walk('./samples/'):
-#     for f in filenames:
-#         fullpath = root + '\\' + f
 
-path = './samples/purple.jpg'
+# A training image should have standard 224x224 dimensions
+def preprocess(im):
+    dimensions = min(im.size)
+
+    # Width is smaller dimension
+    if im.size[0] == dimensions:
+        xoff = 0
+        yoff = (im.size[0] - dimensions) / 2
+    else:
+        xoff = (im.size[1])
+        yoff = 0
+
+    # Reduce size
+    im = im.crop((xoff, yoff, dimensions, dimensions))
+    im = im.resize((200, 200), Image.NEAREST)
+
+    # Normalize the image
+    # colors = np.array(im).astype(float)
+    # colors -= 128
+    # colors /= 256
+    # print(colors)
+    # colors = (colors - np.mean(colors, axis=2)[..., None]) / np.std(colors, axis=2)[..., None]
+    # colors *= 256
+    # colors += 128
+    # colors = np.clip(colors, 0, 255)
+
+    # Image.fromarray(colors, 'RGB').save(fullname_png)
+    return im
+
+# path = './samples/purple.jpg'
 # sobel_watershed(path)
-felzenszwalb_segment(path)
+# felzenszwalb_segment(path)
