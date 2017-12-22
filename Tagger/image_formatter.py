@@ -76,7 +76,7 @@ def preprocess(im):
 
     # Reduce size
     im = im.crop((xoff, yoff, dimensions, dimensions))
-    im = im.resize((200, 200), Image.NEAREST)
+    im = im.resize((224, 224), Image.NEAREST)
 
     # Normalize the image
     # colors = np.array(im).astype(float)

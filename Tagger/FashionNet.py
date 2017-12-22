@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
+from Tagger.image_formatter import preprocess
+
 import Tagger.FashionNet_Layers as L
 
 weight_decay = 0.0005  # L2 regularizer
@@ -28,7 +30,7 @@ class FashionNet(object):
 
     def __init__(self, pretrained=False):
 
-        self.stimulus = tf.placeholder(tf.float32, [1, 224, 224, 3])
+        self.stimulus = tf.placeholder(tf.float32, [None, 224, 224, 3])
 
         # convolutional weights should be a member of all classifier variable collections
         all_coll = [tf.GraphKeys.GLOBAL_VARIABLES, *self.classifications]
@@ -78,7 +80,7 @@ class FashionNet(object):
             self.loss[label] = loss_classify + weight_decay * loss_weight_decay
 
             optimizer = tf.train.GradientDescentOptimizer(step_size)
-            self.train_op[label] = optimizer.minimize(self.loss[label])
+            self.train_op[label] = optimizer.minimize(self.loss[label], var_list=tf.get_collection(label))
 
     def classifier(self, net, label):
 
@@ -98,6 +100,6 @@ class FashionNet(object):
         predictions = {}
 
         for label, predict in self.predict.items():
-            predictions[label] = self.labels[label][np.argmax(predict(np.array(image)[None])[0])]
+            predictions[label] = self.labels[label][np.argmax(predict(np.array(preprocess(image))[None])[0])]
 
         return predictions
