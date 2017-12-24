@@ -28,7 +28,10 @@ class FashionNet(object):
         'category': 6
     }
 
-    def __init__(self, pretrained=False):
+    def __init__(self):
+
+        self.iteration = tf.Variable(0, name='iteration', trainable=False, dtype=tf.int32)
+        self.iteration_step_op = tf.Variable.assign_add(self.iteration, 1)
 
         self.stimulus = tf.placeholder(tf.float32, [None, 224, 224, 3])
 
@@ -62,7 +65,7 @@ class FashionNet(object):
         net = L.conv(net, name="conv5_3", kh=3, kw=3, n_out=512, collections=all_coll)
         net = L.pool(net, name="pool5", kh=2, kw=2, dw=2, dh=2)
 
-        # flatten
+        # flatten before loading into feedforward classifier
         flattened_shape = np.prod([s.value for s in net.get_shape()[1:]])
         net = tf.reshape(net, [-1, flattened_shape], name="flatten")
 
@@ -92,9 +95,6 @@ class FashionNet(object):
         net = tf.nn.dropout(net, keep_prob)
         net = L.fully_connected(net, name=label+"_3", n_out=self.classifications[label], collections=collections)
         return net
-
-    def save(self):
-        pass
 
     def get_attributes(self, image):
         predictions = {}

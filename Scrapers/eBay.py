@@ -100,6 +100,10 @@ def scrape_page(page_number, label, tag):
             if any([ignore_tag in element['alt'] for ignore_tag in ignore]):
                 continue
 
+            # Ignore invalid image format
+            if element['src'].endswith('.gif'):
+                continue
+
             # Check if record is already in database
             if not list(db.ebay.find({'image_url': element['src']})):
                 # Example conversion from url > request > bytestream > binary > bytestream > image
