@@ -1,0 +1,39 @@
+{
+  "category": [
+    "dress",
+    "outerwear",
+    "shirt",
+    "sweater",
+    "t-shirt",
+    "tank-top"
+  ],
+  "color": [
+    "black",
+    "blue",
+    "brown",
+    "cyan",
+    "gray",
+    "green",
+    "purple",
+    "red",
+    "white",
+    "yellow"
+  ],
+  "neckline": [
+    "scoop",
+    "v-neck"
+  ],
+  "pattern": [
+    "floral",
+    "graphic",
+    "plaid",
+    "solid",
+    "spotted",
+    "striped"
+  ],
+  "sleeve": [
+    "long sleeve",
+    "short sleeve",
+    "sleeveless"
+  ]
+}

@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import random
 
 import tensorflow as tf
@@ -16,6 +17,9 @@ import matplotlib.pyplot as plt
 from Tagger.FashionNet import FashionNet
 from Tagger.image_formatter import preprocess
 
+config = json.load(open('config.json'))
+labels = json.load(open('labels.json'))
+
 mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
 
@@ -25,14 +29,9 @@ save_path = os.path.dirname(os.path.realpath(__file__)) + '/saved/'
 
 # batch size of 16 is stable for 4GB of graphics card memory, comment the log level to tweak on your own system
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-batch_size = 16
 
-# when loss is less than epsilon, consider the model converged. Wouldn't this be nice?
-epsilon = 5
-
-# How often to check for convergence and print
-frequency = 10
-history = {label: [] for label in FashionNet.labels.keys()}
+# For plotting
+history = {label: [] for label in labels.keys()}
 
 # 538 color palette
 plt.style.use('fivethirtyeight')
@@ -65,7 +64,7 @@ with tf.Session() as sess:
         stimulus = np.stack([np.array(preprocess(Image.open(BytesIO(binary)))) for binary in binaries])
 
         # Convert a text label to a onehot encoding
-        expected = np.stack([np.eye(FashionNet.classifications[label])[FashionNet.labels[label].index(tag)]
+        expected = np.stack([np.eye(FashionNet.classifications[label])[labels[label].index(tag)]
                              for tag in tags])
 
         return stimulus, expected
@@ -76,13 +75,13 @@ with tf.Session() as sess:
 
         total_loss = 0
         # Sample from records with all attributes
-        query = [{"$match": {label: {"$exists": True} for label in FashionNet.labels.keys()}},
-                 {"$project": {'image': 1, **{label: 1 for label in FashionNet.labels.keys()}}},
-                 {"$sample": {"size": batch_size}}]
+        query = [{"$match": {label: {"$exists": True} for label in labels.keys()}},
+                 {"$project": {'image': 1, **{label: 1 for label in labels.keys()}}},
+                 {"$sample": {"size": config['batch_size']}}]
         # Exhaust the generator into a list b
         data = list(db.ebay.aggregate(query))
 
-        for label in FashionNet.labels.keys():
+        for label in labels.keys():
 
             # Reformat sampled data into input/output values
             stimulus, expected = prepare(data, label)
@@ -92,46 +91,48 @@ with tf.Session() as sess:
                 network.expected[label]: expected
             })
 
-            history[label].append((iteration, loss))
-            print("\t" + label + ": " + str(loss))
+            if config['plot']:
+                history[label].append((iteration, loss))
 
+            print("\t" + label + ": " + str(loss))
             total_loss += loss
 
         # Plotting
-        plt.gca().clear()
-        plt.title('Loss')
-        for index, label in enumerate(FashionNet.labels.keys()):
-            plt.plot(*zip(*history[label]), marker='.', color=colors[index], label=label)
-            plt.legend(loc='upper left', prop={'size': 6})
+        if config['plot']:
+            plt.gca().clear()
+            plt.title('Loss')
+            for index, label in enumerate(labels.keys()):
+                plt.plot(*zip(*history[label]), marker='.', color=colors[index], label=label)
+                plt.legend(loc='upper left', prop={'size': 6})
 
-        # Draw
-        backend = plt.rcParams['backend']
-        if backend in matplotlib.rcsetup.interactive_bk:
-            figManager = matplotlib._pylab_helpers.Gcf.get_active()
-            if figManager is not None:
-                canvas = figManager.canvas
-                if canvas.figure.stale:
-                    canvas.draw()
-                canvas.start_event_loop(0.00001)
+            # Draw
+            backend = plt.rcParams['backend']
+            if backend in matplotlib.rcsetup.interactive_bk:
+                figManager = matplotlib._pylab_helpers.Gcf.get_active()
+                if figManager is not None:
+                    canvas = figManager.canvas
+                    if canvas.figure.stale:
+                        canvas.draw()
+                    canvas.start_event_loop(0.00001)
 
         # Store the graph
         save_all.save(sess, save_path + 'model.ckpt')
 
-        # If converged, return false to end the program
-        return total_loss > epsilon
+        # If converged, return false to end the program. Wouldn't this be nice?
+        return total_loss > config['epsilon']
 
     iteration = sess.run(network.iteration)
 
     print("Iteration: " + str(iteration), end="")
 
-    while iteration % frequency != 0 or checkpoint(iteration):
+    while iteration % config['frequency'] != 0 or checkpoint(iteration):
         iteration = sess.run(network.iteration_step_op)
 
-        label = random.choice(list(FashionNet.labels.keys()))
+        label = random.choice(list(labels.keys()))
 
         query = [{"$match": {label: {"$exists": True}}},
                  {"$project": {'image': 1, label: 1}},
-                 {"$sample": {"size": batch_size}}]
+                 {"$sample": {"size": config['batch_size']}}]
         data = db.ebay.aggregate(query)
 
         # Batch gradient update

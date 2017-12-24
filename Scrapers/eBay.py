@@ -1,6 +1,7 @@
 import requests
 import sys
 import time
+import json
 from random import random
 
 from multiprocessing import Queue, Process, cpu_count
@@ -20,12 +21,7 @@ mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
 
 
-labels = {'sleeve': ['sleeveless', 'short sleeve', 'long sleeve'],
-          'neckline': ['v-neck', 'scoop'],
-          'color': ['red', 'yellow', 'green', 'cyan', 'blue', 'purple', 'brown', 'white', 'gray', 'black'],
-          'pattern': ['solid', 'floral', 'spotted', 'plaid', 'striped', 'graphic'],
-          'category': ['shirt', 'sweater', 't-shirt', 'outerwear', 'tank-top', 'dress']
-          }
+labels = json.load(open('../Tagger/labels.json'))
 
 ignore = ['pants', 'jeans', 'shorts', 'skirt', 'trousers', 'glove', 'bikini', 'sock', 'capri', 'underwear', 'skirt',
           'trouser', 'bra ', 'push-up', 'push up', 'swimsuit', 'leggings', 'skort', 'wunder under', 'leg ']
