@@ -1,0 +1,11 @@
+Return records with all tags (aggregation)
+db.ebay.aggregate([{$match: {sleeve: {$exists: true}, neckline: {$exists: true}, color: {$exists: true}, pattern: {$exists: true}, category: {$exists: true}}}, {$project: {image: 1, sleeve: 1, neckline: 1, color: 1, pattern: 1, category: 1}}])
+
+Additional aggregation stage to count number of records
+{$group: {_id: null, count: {$sum: 1}}}
+
+Remove invalid .gif image
+db.ebay.remove({image_url:{$regex:".*\.gif$"}})
+
+Remove some extra title tags
+db.ebay.remove($or: [{title:/glove/i},{title:/bikini/i},{title:/sock/i},{title:/capri/i},{title:/underwear/i},{title:/skirt/i},{title:/trouser/i},{title:/bra /i},{title:/push-up/i},{title:/push up/i},{title:/swimsuit/i}, {title:/leggings/i},{title:/skort/i},{title:/leg /i}])

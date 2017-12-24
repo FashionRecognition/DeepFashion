@@ -84,17 +84,13 @@ with tf.Session() as sess:
 
         for label in FashionNet.labels.keys():
 
-            try:
-                # Reformat sampled data into input/output values
-                stimulus, expected = prepare(data, label)
+            # Reformat sampled data into input/output values
+            stimulus, expected = prepare(data, label)
 
-                loss = sess.run(network.loss[label], feed_dict={
-                    network.stimulus: stimulus,
-                    network.expected[label]: expected
-                })
-            except TypeError:
-                print("Invalid image in sample, re-attempting checkpoint.")
-                checkpoint(iteration)
+            loss = sess.run(network.loss[label], feed_dict={
+                network.stimulus: stimulus,
+                network.expected[label]: expected
+            })
 
             history[label].append((iteration, loss))
             print("\t" + label + ": " + str(loss))
@@ -138,16 +134,12 @@ with tf.Session() as sess:
                  {"$sample": {"size": batch_size}}]
         data = db.ebay.aggregate(query)
 
-        try:
-            # Batch gradient update
-            stimulus, expected = prepare(data, label)
-            sess.run(network.train_op[label], feed_dict={
-                network.stimulus: stimulus,
-                network.expected[label]: expected
-            })
-        except ValueError:
-            # There seem to be some faulty images? Just ignore them when they come up
-            continue
+        # Batch gradient update
+        stimulus, expected = prepare(data, label)
+        sess.run(network.train_op[label], feed_dict={
+            network.stimulus: stimulus,
+            network.expected[label]: expected
+        })
 
         # Show status
         sys.stdout.write("\r\x1b[KIteration: " + str(iteration))

@@ -8,10 +8,13 @@ from multiprocessing import Queue, Process, cpu_count
 import bs4
 
 from pymongo import MongoClient
+import numpy as np
 
 from io import BytesIO
 from bson.binary import Binary
-# from PIL import Image
+
+from PIL import Image
+from Tagger.image_formatter import preprocess
 
 mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
@@ -24,7 +27,8 @@ labels = {'sleeve': ['sleeveless', 'short sleeve', 'long sleeve'],
           'category': ['shirt', 'sweater', 't-shirt', 'outerwear', 'tank-top', 'dress']
           }
 
-ignore = ['pants', 'jeans', 'shorts', 'skirt', 'trousers']
+ignore = ['pants', 'jeans', 'shorts', 'skirt', 'trousers', 'glove', 'bikini', 'sock', 'capri', 'underwear', 'skirt',
+          'trouser', 'bra ', 'push-up', 'push up', 'swimsuit', 'leggings', 'skort', 'wunder under', 'leg ']
 
 
 def scrape(label, tag):
@@ -113,9 +117,19 @@ def scrape_page(page_number, label, tag):
                 # Decode binary via the following:
                 # Image.open(BytesIO(listing['image']))
 
+                # Download image
+                content = requests.get(element['src']).content
+
+                try:
+                    processed_shape = np.shape(np.array(preprocess(Image.open(BytesIO(content)))))
+                    assert(processed_shape == (224, 224, 3))
+                except (IOError, AssertionError):
+                    # Ignore greyscale or corrupted images
+                    continue
+
                 listing = {'image_url': element['src'],
                            'title': element['alt'],
-                           'image': Binary(BytesIO(requests.get(element['src']).content).getvalue()),
+                           'image': Binary(BytesIO(content).getvalue()),
                            label: tag
                            }
 
