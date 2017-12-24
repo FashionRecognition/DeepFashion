@@ -20,6 +20,12 @@ from Tagger.image_formatter import preprocess
 config = json.load(open('config.json'))
 labels = json.load(open('labels.json'))
 
+# For plotting
+if os.path.exists('history.json'):
+    history = json.load(open('history.json'))
+else:
+    history = {label: [] for label in labels.keys()}
+
 mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
 
@@ -29,9 +35,6 @@ save_path = os.path.dirname(os.path.realpath(__file__)) + '/saved/'
 
 # batch size of 16 is stable for 4GB of graphics card memory, comment the log level to tweak on your own system
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-# For plotting
-history = {label: [] for label in labels.keys()}
 
 # 538 color palette
 plt.style.use('fivethirtyeight')
@@ -44,9 +47,10 @@ colors = np.array([[48, 162, 218],
 
 # Once it plots, the main thread returns to network administration
 # This means the plots aren't very responsive- to fix this split it off to a different thread. It still plots though
-fig = plt.figure(figsize=(5, 3))
-plt.title('Loss')
-plt.show(block=False)
+if config['plot']:
+    fig = plt.figure(figsize=(5, 3))
+    plt.title('Loss')
+    plt.show(block=False)
 
 with tf.Session() as sess:
 
@@ -92,13 +96,16 @@ with tf.Session() as sess:
             })
 
             if config['plot']:
-                history[label].append((iteration, loss))
+                history[label].append((int(iteration), float(loss)))
 
             print("\t" + label + ": " + str(loss))
             total_loss += loss
 
         # Plotting
         if config['plot']:
+            with open('history.json', 'w') as outfile:
+                json.dump(history, outfile)
+
             plt.gca().clear()
             plt.title('Loss')
             for index, label in enumerate(labels.keys()):
