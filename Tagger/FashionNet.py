@@ -1,20 +1,18 @@
-import json
 import numpy as np
 import tensorflow as tf
 
-from Tagger.image_formatter import preprocess
-
 import Tagger.FashionNet_Layers as L
-
-config = json.load(open('config.json'))
-labels = json.load(open('labels.json'))
+from Tagger.image_formatter import preprocess
 
 
 class FashionNet(object):
+    classifications = {}
 
-    classifications = {label: len(labels[label]) for label in labels.keys()}
+    def __init__(self, config, labels):
+        self.config = config
+        self.labels = labels
 
-    def __init__(self):
+        self.classifications = {label: len(self.labels[label]) for label in self.labels.keys()}
 
         self.iteration = tf.Variable(0, name='iteration', trainable=False, dtype=tf.int32)
         self.iteration_step_op = tf.Variable.assign_add(self.iteration, 1)
@@ -60,7 +58,7 @@ class FashionNet(object):
         self.loss = {}
         self.train_op = {}
 
-        for label in labels.keys():
+        for label in self.labels.keys():
             self.expected[label] = tf.placeholder(tf.float32)
             self.predict[label] = tf.nn.softmax(self.classifier(net, label))
 
@@ -76,9 +74,9 @@ class FashionNet(object):
         collections = [label, tf.GraphKeys.GLOBAL_VARIABLES]
 
         net = L.fully_connected(net, name=label+"_1", n_out=2048, collections=collections)
-        net = tf.nn.dropout(net, config['keep_prob'])
+        net = tf.nn.dropout(net, self.config['keep_prob'])
         net = L.fully_connected(net, name=label+"_2", n_out=1024, collections=collections)
-        net = tf.nn.dropout(net, config['keep_prob'])
+        net = tf.nn.dropout(net, self.config['keep_prob'])
         net = L.fully_connected(net, name=label+"_3", n_out=self.classifications[label], collections=collections)
         return net
 
@@ -86,6 +84,6 @@ class FashionNet(object):
         predictions = {}
 
         for label, predict in self.predict.items():
-            predictions[label] = labels[label][np.argmax(predict(np.array(preprocess(image))[None])[0])]
+            predictions[label] = self.labels[label][np.argmax(predict(np.array(preprocess(image))[None])[0])]
 
         return predictions
