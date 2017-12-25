@@ -82,8 +82,7 @@ with tf.Session() as sess:
         stim = np.stack([np.array(preprocess(Image.open(BytesIO(binary)))) for binary in binaries])
 
         # Convert a text label to a onehot encoding
-        exp = np.stack([np.eye(FashionNet.classifications[label])[labels[label].index(tag)]
-                        for tag in tags])
+        exp = np.stack([np.eye(network.classifications[label])[labels[label].index(tag)] for tag in tags])
 
         return stim, exp
 
@@ -100,6 +99,7 @@ with tf.Session() as sess:
         # Exhaust the generator into a list b
         samples = list(db.ebay.aggregate(query))
 
+        # Evaluate losses for all five classifiers
         for label in labels.keys():
 
             # Reformat sampled data into input/output values
@@ -166,12 +166,10 @@ with tf.Session() as sess:
 
 
     iteration = sess.run(network.iteration)
-
     print("Iteration: " + str(iteration), end="")
 
     while iteration % config['frequency'] != 0 or checkpoint(iteration):
         iteration = sess.run(network.iteration_step_op)
-
         update()
 
         # Show status
