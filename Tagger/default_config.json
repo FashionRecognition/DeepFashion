@@ -3,6 +3,7 @@
   "keep_prob": 0.8,
   "step_size": 1.0,
   "weight_decay": 0.0005,
+  "gradient_norm": 2.0,
 
   "frequency": 100,
   "epsilon": 5,
