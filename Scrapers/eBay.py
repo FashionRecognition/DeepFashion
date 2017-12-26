@@ -23,8 +23,8 @@ db = mongo_client.deep_fashion
 
 labels = json.load(open('../Tagger/labels.json'))
 
-ignore = ['pants', 'jeans', 'shorts', 'skirt', 'trousers', 'glove', 'bikini', 'sock', 'capri', 'underwear', 'skirt',
-          'trouser', 'bra ', 'push-up', 'push up', 'swimsuit', 'leggings', 'skort', 'wunder under', 'leg ']
+ignore = ['pant', 'jean', 'shorts', 'skirt', 'trouser', 'glove', 'bikini', 'sock', 'capri', 'underwear', 'skirt',
+          'bra ', 'push-up', 'push up', 'swimsuit', 'leggings', 'skort', 'wunder under', 'leg ', 'purse', 'vassarette']
 
 
 def scrape(label, tag):
@@ -97,7 +97,7 @@ def scrape_page(page_number, label, tag):
             element = bs4.BeautifulSoup(str(listing), "lxml").div.div.a.img
 
             # Don't write elements that match the ignore list
-            if any([ignore_tag in element['alt'] for ignore_tag in ignore]):
+            if any([ignore_tag in element['alt'].tolower() for ignore_tag in ignore]):
                 continue
 
             # Ignore invalid image format

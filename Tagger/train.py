@@ -33,11 +33,12 @@ mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
 
 # To create a new model, edit the default_config.json, then run with your 'model_name'
-model_name = 'first_gradient_descent'
+model_name = 'second_gradient_descent'
 save_path = os.path.dirname(os.path.realpath(__file__)) + '\\saved\\' + model_name + '\\'
 save = True
 
 labels = json.load(open('labels.json'))
+
 
 with tf.Session() as sess:
     # Load configs
@@ -162,7 +163,7 @@ with tf.Session() as sess:
                 network.expected[label]: expected
             })
         except tf.errors.ResourceExhaustedError:
-            print("Resources Exhausted. Attempting to continue.")
+            print(" Resources Exhausted. Attempting to continue.")
 
 
     iteration = sess.run(network.iteration)
