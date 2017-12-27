@@ -20,7 +20,10 @@ plt.rcParams['figure.dpi'] = 200
 
 
 # Prep a training image with standard dimensions and no backing
-def preprocess(im, target_dims):
+def preprocess(im, target_dims, debug=False):
+    im = canny_mask(cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR), debug)
+    im = Image.fromarray(cv2.cvtColor(im, cv2.COLOR_BGR2RGB), 'RGB')
+
     width, height = im.size
     aspect_ratio = width / height
     target_ratio = target_dims[0] / target_dims[1]
@@ -57,8 +60,9 @@ def preprocess(im, target_dims):
     return im
 
 
-def canny_mask(img):
-    cv2.imshow("original", img)
+def canny_mask(img, debug=False):
+    if debug:
+        cv2.imshow("original", img)
     # Operate on greyscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -79,21 +83,28 @@ def canny_mask(img):
     # hierarchy is a list of region metadata: [next sibling ID, previous sibling ID, child ID, parent ID]
 
     # Additional edge plot for seeing top n classifications
-    contours = sorted(contours, key=lambda cont: cv2.contourArea(cont), reverse=True)[:5]
+    if debug:
+        contours = sorted(contours, key=lambda cont: cv2.contourArea(cont), reverse=True)[:5]
 
-    tempmask = np.zeros(edges.shape)
-    for idx, contour in enumerate(contours):
-        cv2.fillPoly(tempmask, [contour], 1 - 1. / len(contours) * (idx + 1))
-    cv2.imshow('mask', tempmask)
+        tempmask = np.zeros(edges.shape)
+        for idx, contour in enumerate(contours):
+            cv2.fillPoly(tempmask, [contour], 1 - 1. / len(contours) * (idx + 1))
+        cv2.imshow('mask', tempmask)
 
     # Catch a few cases where segmentation breaks down
     if not contours:
-        raise ValueError("No contours detected")
+        if debug:
+            raise ValueError("No contours detected")
+        else:
+            return img
 
     # Pick the contour with the greatest area, tends to represent the clothing item
     max_contour = max(contours, key=lambda cont: cv2.contourArea(cont))
     if not (.20 < cv2.contourArea(max_contour) / np.prod(img.shape[:2]) < .80):
-        raise ValueError("Detected poor area coverage")
+        if debug:
+            raise ValueError("Detected poor area coverage")
+        else:
+            return img
 
     # Create empty mask, draw filled polygon on it corresponding to largest contour
     # Mask is black, polygon is white
@@ -108,7 +119,10 @@ def canny_mask(img):
     border_size = np.sum(img.shape[:2] * 2) - 2
     border_coverage = border_size - (np.sum(mask[-1:] + mask[:1]) + np.sum(mask[:, -1:] + mask[:, :1])) / 255
     if (border_coverage / border_size) < .6:
-        raise ValueError("Detected poor border coverage")
+        if debug:
+            raise ValueError("Detected poor border coverage")
+        else:
+            return img
 
     # First remove some fine details from the mask
     blur_radius = 25
@@ -125,46 +139,12 @@ def canny_mask(img):
 
     # Apply mask, then slice to bounding box of mask
     mask = np.dstack([mask] * 3).astype('float32') / 255.0
-    return (mask * img.astype('float32')).astype('uint8')[x:x+w, y:y+h]
+    img = (mask * img.astype('float32')).astype('uint8')[x:x+w, y:y+h]
 
+    if debug:
+        cv2.imshow("masked", img)
 
-def canny_is_quality(img):
-    # Operate on greyscale
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Edge detection
-    edges = cv2.Canny(gray, 10, 200)
-    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, None)
-
-    # At this stage, the image is b/w, with white along edges, black within regions
-
-    # ~~~ Now find regions, which are enclosed by contours:
-    # Retrieval mode - consider landlocked contours children. TREE preserves hierarchy, LIST flattens
-    # Chain approx - how many points used along edge of region.
-    #                NONE is all, SIMPLE works well for straight edges, Teh-Chin for lossy fitting of a curvy contour
-    im2, contours, hierarchy = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    # contours is a list of regions, each region is a list of boundary coordinates
-    # hierarchy is a list of region metadata: [next sibling ID, previous sibling ID, child ID, parent ID]
-
-    if not contours:
-        return False
-
-    max_contour = max(contours, key=lambda cont: cv2.contourArea(cont))
-    if not (.23 < cv2.contourArea(max_contour) / np.prod(img.shape[:2]) < .75):
-        return False
-
-    mask = np.zeros(edges.shape)
-    cv2.fillConvexPoly(mask, max_contour, 255)
-
-    mask = cv2.dilate(mask, None, iterations=10)
-    mask = cv2.erode(mask, None, iterations=10)
-
-    border_size = np.sum(img.shape[:2] * 2) - 2
-    border_coverage = border_size - (np.sum(mask[-1:] + mask[:1]) + np.sum(mask[:, -1:] + mask[:, :1])) / 255
-
-    if (border_coverage / border_size) < .7:
-        return False
-    return True
+    return img
 
 
 if __name__ == '__main__':
@@ -177,30 +157,10 @@ if __name__ == '__main__':
             pil_image = Image.open(BytesIO(record['image']))
 
             try:
-                img = canny_mask(cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR))
-                preprocess(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 'RGB'), (192, 256)).show()
-
-                cv2.imshow("masked", img)
+                preprocess(pil_image, (192, 256), debug=True).show()
                 cv2.waitKey()
             except ValueError as err:
                 print(err)
-
-
-    def quality_check():
-        count = 0
-        for record in db.ebay.find({}):
-            count += 1
-            sys.stdout.write("\r\x1b[KProcessing: " + str(count))
-            sys.stdout.flush()
-
-            # Proof of concept, this can be made more efficient
-            pil_image = Image.open(BytesIO(record['image']))
-            if canny_mask(cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)):
-                db.ebay.update({'image_url': record['image_url']}, {"$set": {"quality": True}})
-
-
-    # Tag database with the results of the canny segmentation
-    # quality_check()
 
     # Mask some images with canny
     test_canny()
