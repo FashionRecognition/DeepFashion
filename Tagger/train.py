@@ -33,12 +33,13 @@ mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
 
 # To create a new model, edit the default_config.json, then run with your 'model_name'
-model_name = 'second_gradient_descent'
+model_name = 'third_gradient_descent'
 save_path = os.path.dirname(os.path.realpath(__file__)) + '\\saved\\' + model_name + '\\'
 save = True
 
 labels = json.load(open('labels.json'))
 
+image_dimensions = (192, 256)
 
 with tf.Session() as sess:
     # Load configs
@@ -50,7 +51,7 @@ with tf.Session() as sess:
         history = {label: [] for label in labels.keys()}
 
     # Network construction
-    network = FashionNet(config, labels)
+    network = FashionNet(config, labels, image_dimensions)
     save_all = tf.train.Saver(max_to_keep=4, save_relative_paths=True)
 
     # Variable initialization
@@ -80,7 +81,7 @@ with tf.Session() as sess:
         binaries, tags = [i for i in zip(*[(stim['image'], stim[label]) for stim in data])]
 
         # Convert a list of binaries to a 4D stimulus array
-        stim = np.stack([np.array(preprocess(Image.open(BytesIO(binary)))) for binary in binaries])
+        stim = np.stack([np.array(preprocess(Image.open(BytesIO(binary)), image_dimensions)) for binary in binaries])
 
         # Convert a text label to a onehot encoding
         exp = np.stack([np.eye(network.classifications[label])[labels[label].index(tag)] for tag in tags])
@@ -97,7 +98,7 @@ with tf.Session() as sess:
         query = [{"$match": {label: {"$exists": True} for label in labels.keys()}},
                  {"$project": {'image': 1, **{label: 1 for label in labels.keys()}}},
                  {"$limit": config['batch_size']}]
-        # Exhaust the generator into a list b
+        # Exhaust the generator into a list
         samples = list(db.ebay.aggregate(query))
 
         # Evaluate losses for all five classifiers
@@ -150,7 +151,7 @@ with tf.Session() as sess:
     def update():
         label = random.choice(list(labels.keys()))
 
-        query = [{"$match": {label: {"$exists": True}}},
+        query = [{"$match": {label: {"$exists": True}, "quality": {"$exists": True}}},
                  {"$project": {'image': 1, label: 1}},
                  {"$sample": {"size": config['batch_size']}}]
         data = db.ebay.aggregate(query)

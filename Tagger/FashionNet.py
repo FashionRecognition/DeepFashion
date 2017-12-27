@@ -9,7 +9,7 @@ from Tagger.image_formatter import preprocess
 class FashionNet(object):
     classifications = {}
 
-    def __init__(self, config, labels):
+    def __init__(self, config, labels, dimensions):
         self.config = config
         self.labels = labels
 
@@ -18,33 +18,35 @@ class FashionNet(object):
         self.iteration = tf.Variable(0, name='iteration', trainable=False, dtype=tf.int32)
         self.iteration_step_op = tf.Variable.assign_add(self.iteration, 1)
 
-        self.stimulus = tf.placeholder(tf.float32, [None, 224, 224, 3])
+        self.stimulus = tf.placeholder(tf.float32, [None, *dimensions, 3])
 
         # convolutional weights should be a member of all classifier variable collections
         all_coll = [tf.GraphKeys.GLOBAL_VARIABLES, *self.classifications.keys()]
 
-        # block 1 -- outputs 112x112x64
+        # If dimensions are 192x256, outputs are given
+
+        # block 1 -- outputs 96x128x64
         net = conv(self.stimulus, name="conv1_1", kh=3, kw=3, n_out=64, collections=all_coll)
         net = conv(net, name="conv1_2", kh=3, kw=3, n_out=64, collections=all_coll)
         net = pool(net, name="pool1", kh=2, kw=2, dw=2, dh=2)
 
-        # block 2 -- outputs 56x56x128
+        # block 2 -- outputs 48x64x128
         net = conv(net, name="conv2_1", kh=3, kw=3, n_out=128, collections=all_coll)
         net = conv(net, name="conv2_2", kh=3, kw=3, n_out=128, collections=all_coll)
         net = pool(net, name="pool2", kh=2, kw=2, dh=2, dw=2)
 
-        # # block 3 -- outputs 28x28x256
+        # # block 3 -- outputs 24x32x256
         net = conv(net, name="conv3_1", kh=3, kw=3, n_out=256, collections=all_coll)
         net = conv(net, name="conv3_2", kh=3, kw=3, n_out=256, collections=all_coll)
         net = pool(net, name="pool3", kh=2, kw=2, dh=2, dw=2)
 
-        # block 4 -- outputs 14x14x512
+        # block 4 -- outputs 12x16x512
         net = conv(net, name="conv4_1", kh=3, kw=3, n_out=512, collections=all_coll)
         net = conv(net, name="conv4_2", kh=3, kw=3, n_out=512, collections=all_coll)
         net = conv(net, name="conv4_3", kh=3, kw=3, n_out=512, collections=all_coll)
         net = pool(net, name="pool4", kh=2, kw=2, dh=2, dw=2)
 
-        # block 5 -- outputs 7x7x512
+        # block 5 -- outputs 6x8x512
         net = conv(net, name="conv5_1", kh=3, kw=3, n_out=512, collections=all_coll)
         net = conv(net, name="conv5_2", kh=3, kw=3, n_out=512, collections=all_coll)
         net = conv(net, name="conv5_3", kh=3, kw=3, n_out=512, collections=all_coll)

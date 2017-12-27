@@ -19,21 +19,29 @@ plt.rcParams['image.cmap'] = 'gray'
 plt.rcParams['figure.dpi'] = 200
 
 
-# A training image should have standard 224x224 dimensions
-def preprocess(im):
-    dimensions = min(im.size)
+# Prep a training image with standard dimensions and no backing
+def preprocess(im, target_dims):
+    width, height = im.size
+    aspect_ratio = width / height
+    target_ratio = target_dims[0] / target_dims[1]
 
-    # Width is smaller dimension
-    if im.size[0] == dimensions:
-        xoff = 0
-        yoff = (im.size[0] - dimensions) / 2
-    else:
-        xoff = (im.size[1])
-        yoff = 0
+    if aspect_ratio != target_ratio:
+        # If image is wider than target dims, add a black bar to the bottom
+        if aspect_ratio > target_ratio:
+            background = Image.new('RGB', (width, target_dims[1]), (0, 0, 0))
+            background.paste(im, (0, 0))
+
+            im = background
+
+        # Image is thinner than target dims, crop out top/bottom bars
+        else:
+            mult = width / target_dims[0]
+            # The top of the image is more important, so we won't crop to center
+            # y_off = int((height - target_dims[1] * mult) / 2)
+            im = im.crop((0, 0, target_dims[0] * mult, target_dims[1] * mult))
 
     # Reduce size
-    im = im.crop((xoff, yoff, dimensions, dimensions))
-    im = im.resize((224, 224), Image.NEAREST)
+    im = im.resize(target_dims, Image.NEAREST)
 
     # Normalize the image
     # colors = np.array(im).astype(float)
@@ -50,6 +58,7 @@ def preprocess(im):
 
 
 def canny_mask(img):
+    cv2.imshow("original", img)
     # Operate on greyscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -70,47 +79,56 @@ def canny_mask(img):
     # hierarchy is a list of region metadata: [next sibling ID, previous sibling ID, child ID, parent ID]
 
     # Additional edge plot for seeing top n classifications
-    # contours = sorted(contours, key=lambda cont: cv2.contourArea(cont), reverse=True)[:5]
-    #
-    # tempmask = np.zeros(edges.shape)
-    # for idx, contour in enumerate(contours):
-    #     cv2.fillPoly(tempmask, contour, 1 - 1. / len(contours) * (idx + 1))
-    # cv2.imshow('mask', tempmask)
+    contours = sorted(contours, key=lambda cont: cv2.contourArea(cont), reverse=True)[:5]
+
+    tempmask = np.zeros(edges.shape)
+    for idx, contour in enumerate(contours):
+        cv2.fillPoly(tempmask, [contour], 1 - 1. / len(contours) * (idx + 1))
+    cv2.imshow('mask', tempmask)
 
     # Catch a few cases where segmentation breaks down
     if not contours:
-        return img
+        raise ValueError("No contours detected")
 
     # Pick the contour with the greatest area, tends to represent the clothing item
     max_contour = max(contours, key=lambda cont: cv2.contourArea(cont))
     if not (.20 < cv2.contourArea(max_contour) / np.prod(img.shape[:2]) < .80):
-        return img
+        raise ValueError("Detected poor area coverage")
 
     # Create empty mask, draw filled polygon on it corresponding to largest contour
     # Mask is black, polygon is white
     mask = np.zeros(edges.shape)
-    cv2.fillConvexPoly(mask, max_contour, 255)
+    cv2.fillPoly(mask, [max_contour], 255)
 
     # Smooth mask, then blur it
-    mask = cv2.dilate(mask, None, iterations=10)
-    mask = cv2.erode(mask, None, iterations=10)
+    mask = cv2.dilate(mask, None, iterations=2)
+    mask = cv2.erode(mask, None, iterations=2)
 
     # Catch another case where segmentation breaks down
     border_size = np.sum(img.shape[:2] * 2) - 2
     border_coverage = border_size - (np.sum(mask[-1:] + mask[:1]) + np.sum(mask[:, -1:] + mask[:, :1])) / 255
     if (border_coverage / border_size) < .6:
-        return img
+        raise ValueError("Detected poor border coverage")
 
-    # Checks have passed, now apply the mask to the image
+    # First remove some fine details from the mask
+    blur_radius = 25
+    macro = cv2.GaussianBlur(mask, (blur_radius, blur_radius), 0)
+    macro[macro < 128] = 0
+    macro[macro > 0] = 1
+
     blur_radius = 5
-    mask = cv2.GaussianBlur(mask, (blur_radius, blur_radius), 0)
+    mask = cv2.GaussianBlur(mask * macro, (blur_radius, blur_radius), 0)
 
+    # Find bounding box of mask
+    nonzero = cv2.findNonZero(mask.astype(np.uint8))
+    y, x, h, w = cv2.boundingRect(nonzero)
+
+    # Apply mask, then slice to bounding box of mask
     mask = np.dstack([mask] * 3).astype('float32') / 255.0
-    return (mask * img.astype('float32')).astype('uint8')
+    return (mask * img.astype('float32')).astype('uint8')[x:x+w, y:y+h]
 
 
 def canny_is_quality(img):
-
     # Operate on greyscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -157,10 +175,16 @@ if __name__ == '__main__':
             record = list(db.ebay.aggregate([{"$sample": {"size": 1}}]))[0]
             print(record['title'])
             pil_image = Image.open(BytesIO(record['image']))
-            img = canny_mask(cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR))
 
-            cv2.imshow("masked", img)
-            cv2.waitKey()
+            try:
+                img = canny_mask(cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR))
+                preprocess(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 'RGB'), (192, 256)).show()
+
+                cv2.imshow("masked", img)
+                cv2.waitKey()
+            except ValueError as err:
+                print(err)
+
 
     def quality_check():
         count = 0
