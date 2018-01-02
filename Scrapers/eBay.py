@@ -15,7 +15,6 @@ from io import BytesIO
 from bson.binary import Binary
 
 from PIL import Image
-from Tagger.image_formatter import preprocess
 
 mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
@@ -73,9 +72,9 @@ def process_wrapper(page_queue, label, tag):
                 # Sometimes the div doesn't get loaded properly, just re-attempt quietly
                 pass
 
-            except Exception as err:
-                print(err)
-                print("Re-attempting page " + str(page_id))
+            # except Exception as err:
+            #     print(err)
+            #     print("Re-attempting page " + str(page_id))
 
             # Be nice to their servers
             time.sleep(1)
@@ -86,6 +85,7 @@ def scrape_page(page_number, label, tag):
                   '?_nkw=used+womens+clothes+' + tag.replace(' ', '+') + \
                   '&_sop=10&_pgn=' + str(page_number)
 
+    # This only downloads the raw html
     soup = bs4.BeautifulSoup(requests.get(listing_url).content, "lxml")
 
     # Iterate through each product listing
@@ -93,11 +93,11 @@ def scrape_page(page_number, label, tag):
 
         # Some elements are not for products. Just ignore the error
         try:
-            # Isolate the image div. This only downloads the raw html
-            element = bs4.BeautifulSoup(str(listing), "lxml").div.div.a.img
+            # Isolate the image div.
+            element = bs4.BeautifulSoup(str(listing), "lxml").li.div.div.a.img
 
             # Don't write elements that match the ignore list
-            if any([ignore_tag in element['alt'].tolower() for ignore_tag in ignore]):
+            if any([ignore_tag in element['alt'].lower() for ignore_tag in ignore]):
                 continue
 
             # Ignore invalid image format
@@ -117,8 +117,7 @@ def scrape_page(page_number, label, tag):
                 content = requests.get(element['src']).content
 
                 try:
-                    processed_shape = np.shape(np.array(preprocess(Image.open(BytesIO(content)))))
-                    assert(processed_shape == (224, 224, 3))
+                    assert(len(np.array(Image.open(BytesIO(content))).shape) == 3)
                 except (IOError, AssertionError):
                     # Ignore greyscale or corrupted images
                     continue
