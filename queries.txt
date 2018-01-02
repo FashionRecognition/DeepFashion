@@ -9,3 +9,6 @@ db.ebay.remove({image_url:{$regex:".*\.gif$"}})
 
 Remove some extra title tags
 db.ebay.remove($or: [{title:/glove/i},{title:/bikini/i},{title:/sock/i},{title:/capri/i},{title:/underwear/i},{title:/skirt/i},{title:/trouser/i},{title:/bra /i},{title:/push-up/i},{title:/push up/i},{title:/swimsuit/i}, {title:/leggings/i},{title:/skort/i},{title:/leg /i}])
+
+Relabel tags with {"category": "t-shirt"} to {"category": "shirt"} (no upsert, yes update multi)
+db.ebay.update({"category":"t-shirt"}, {"$set": {"category": "shirt"}}, false, true)

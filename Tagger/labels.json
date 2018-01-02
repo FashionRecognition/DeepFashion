@@ -4,24 +4,12 @@
     "outerwear",
     "shirt",
     "sweater",
-    "t-shirt",
     "tank-top"
-  ],
-  "color": [
-    "black",
-    "blue",
-    "brown",
-    "cyan",
-    "gray",
-    "green",
-    "purple",
-    "red",
-    "white",
-    "yellow"
   ],
   "neckline": [
     "scoop",
-    "v-neck"
+    "v-neck",
+    "collar"
   ],
   "pattern": [
     "floral",
