@@ -33,13 +33,11 @@ mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
 
 # To create a new model, edit the default_config.json, then run with your 'model_name'
-model_name = 'fourth_gradient_descent'
+model_name = 'sixth_gradient_descent'
 save_path = os.path.dirname(os.path.realpath(__file__)) + '\\saved\\' + model_name + '\\'
 save = True
 
 labels = json.load(open('labels.json'))
-
-image_dimensions = (192, 256)
 
 with tf.Session() as sess:
     # Load configs
@@ -51,7 +49,7 @@ with tf.Session() as sess:
         history = {label: [] for label in labels.keys()}
 
     # Network construction
-    network = FashionNet(config, labels, image_dimensions)
+    network = FashionNet(config, labels, config['image_shape'])
     save_all = tf.train.Saver(max_to_keep=4, save_relative_paths=True)
 
     # Variable initialization
@@ -81,9 +79,11 @@ with tf.Session() as sess:
         binaries, tags = [i for i in zip(*[(stim['image'], stim[label]) for stim in data])]
 
         # Convert a list of binaries to a 4D stimulus array
-        stim = np.stack([np.transpose(np.array(
-                         preprocess(Image.open(BytesIO(binary)), image_dimensions)), axes=(1, 0, 2))
-                         for binary in binaries])
+        stim_list = []
+        for binary in binaries:
+            img = preprocess(Image.open(BytesIO(binary)), config['image_shape'])
+            stim_list.append(np.transpose(np.array(img), axes=(1, 0, 2)))
+        stim = np.stack(stim_list)
 
         # Convert a text label to a onehot encoding
         exp = np.stack([np.eye(network.classifications[label])[labels[label].index(tag)] for tag in tags])
@@ -98,10 +98,13 @@ with tf.Session() as sess:
         total_loss = 0
         # Take first n records with all attributes
         query = [{"$match": {label: {"$exists": True} for label in labels.keys()}},
-                 {"$project": {'image': 1, **{label: 1 for label in labels.keys()}}},
+                 {"$project": {'image_url': 1, 'image': 1, **{label: 1 for label in labels.keys()}}},
                  {"$limit": config['batch_size']}]
         # Exhaust the generator into a list
         samples = list(db.ebay.aggregate(query))
+
+        # Print the predicted values for a single sample
+        example = random.choice(samples)
 
         # Evaluate losses for all five classifiers
         for label in labels.keys():
@@ -114,11 +117,19 @@ with tf.Session() as sess:
                 network.expected[label]: expected
             })
 
+            prediction = sess.run(network.predict[label], feed_dict={
+                network.stimulus: np.transpose(preprocess(Image.open(BytesIO(example['image'])), config['image_shape']), axes=(1, 0, 2))[None]
+            })[0]
+
+            expectation = np.eye(network.classifications[label])[labels[label].index(example[label])]
+
             if config['plot']:
                 history[label].append((int(check_iteration), float(loss)))
 
-            print("\t" + label + ": " + str(loss))
+            print("\t" + label + ": " + str(loss) + '\t' + np.array2string(prediction, precision=2) + ' ' + str(expectation))
             total_loss += loss
+
+        print(example['image_url'])
 
         # Store the graph
         if save:

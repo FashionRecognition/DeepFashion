@@ -2,26 +2,22 @@ from pymongo import MongoClient
 from io import BytesIO
 
 import numpy as np
-import matplotlib.pyplot as plt
-
 from PIL import Image
-
-import sys
 
 # openCV package is distributed as a binary, so references won't resolve
 import cv2
 
-mongo_client = MongoClient(host='localhost', port=27017)  # Default port
-db = mongo_client.deep_fashion
-
-plt.rcParams['image.interpolation'] = 'nearest'
-plt.rcParams['image.cmap'] = 'gray'
-plt.rcParams['figure.dpi'] = 200
-
 
 # Prep a training image with standard dimensions and no backing
 def preprocess(im, target_dims, debug=False):
-    im = canny_mask(cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR), debug)
+    im = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
+    mask, (y, x, h, w) = canny_mask(im, debug)
+
+    # Apply mask, then slice to bounding box of mask
+    mask = np.dstack([mask] * 3).astype('float32') / 255.0
+    im = (mask * im.astype('float32')).astype('uint8')[x:x+w, y:y+h]
+
+    # Convert back to PIL
     im = Image.fromarray(cv2.cvtColor(im, cv2.COLOR_BGR2RGB), 'RGB')
 
     width, height = im.size
@@ -96,7 +92,7 @@ def canny_mask(img, debug=False):
         if debug:
             raise ValueError("No contours detected")
         else:
-            return img
+            return np.ones(img.shape[:2]) * 255, (0, 0, *img.shape[:2])
 
     # Pick the contour with the greatest area, tends to represent the clothing item
     max_contour = max(contours, key=lambda cont: cv2.contourArea(cont))
@@ -104,7 +100,7 @@ def canny_mask(img, debug=False):
         if debug:
             raise ValueError("Detected poor area coverage")
         else:
-            return img
+            return np.ones(img.shape[:2]) * 255, (0, 0, *img.shape[:2])
 
     # Create empty mask, draw filled polygon on it corresponding to largest contour
     # Mask is black, polygon is white
@@ -122,7 +118,7 @@ def canny_mask(img, debug=False):
         if debug:
             raise ValueError("Detected poor border coverage")
         else:
-            return img
+            return np.ones(img.shape[:2]) * 255, (0, 0, *img.shape[:2])
 
     # First remove some fine details from the mask
     blur_radius = 25
@@ -135,19 +131,13 @@ def canny_mask(img, debug=False):
 
     # Find bounding box of mask
     nonzero = cv2.findNonZero(mask.astype(np.uint8))
-    y, x, h, w = cv2.boundingRect(nonzero)
-
-    # Apply mask, then slice to bounding box of mask
-    mask = np.dstack([mask] * 3).astype('float32') / 255.0
-    img = (mask * img.astype('float32')).astype('uint8')[x:x+w, y:y+h]
-
-    if debug:
-        cv2.imshow("masked", img)
-
-    return img
+    return mask, cv2.boundingRect(nonzero)
 
 
 if __name__ == '__main__':
+
+    mongo_client = MongoClient(host='localhost', port=27017)  # Default port
+    db = mongo_client.deep_fashion
 
     def test_canny():
         while True:
@@ -157,7 +147,7 @@ if __name__ == '__main__':
             pil_image = Image.open(BytesIO(record['image']))
 
             try:
-                preprocess(pil_image, (192, 256), debug=True).show()
+                preprocess(pil_image, (192, 256), debug=True)
                 cv2.waitKey()
             except ValueError as err:
                 print(err)

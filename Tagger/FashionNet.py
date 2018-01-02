@@ -95,11 +95,12 @@ class FashionNet(object):
         net = fully_connected(net, name=label+"_3", n_out=self.classifications[label], collections=collections)
         return net
 
-    def get_attributes(self, image):
+    def get_attributes(self, predictions):
         predictions = {}
 
         for label, predict in self.predict.items():
-            predictions[label] = self.labels[label][np.argmax(predict(np.array(preprocess(image))[None])[0])]
+            prediction = predict(np.array(preprocess(image, self.config['image_shape']))[None])[0]
+            predictions[label] = self.labels[label][np.argmax(prediction)]
 
         return predictions
 
