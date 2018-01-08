@@ -72,9 +72,9 @@ def process_wrapper(page_queue, label, tag):
                 # Sometimes the div doesn't get loaded properly, just re-attempt quietly
                 pass
 
-            # except Exception as err:
-            #     print(err)
-            #     print("Re-attempting page " + str(page_id))
+            except Exception as err:
+                print(err)
+                print("Re-attempting page " + str(page_id))
 
             # Be nice to their servers
             time.sleep(1)
