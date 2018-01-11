@@ -9,28 +9,36 @@ import cv2
 
 
 # Prep a training image with standard dimensions and no backing
-def preprocess(im, target_dims, debug=False):
-    im = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
-    mask, (y, x, h, w) = canny_mask(im, debug)
+def preprocess(im, target_dims, mask=True, letterboxing=True, debug=False):
 
-    # Apply mask, then slice to bounding box of mask
-    mask = np.dstack([mask] * 3).astype('float32') / 255.0
-    im = (mask * im.astype('float32')).astype('uint8')[x:x+w, y:y+h]
+    if mask:
+        im = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
+        mask, (y, x, h, w) = canny_mask(im, debug)
 
-    # Convert back to PIL
-    im = Image.fromarray(cv2.cvtColor(im, cv2.COLOR_BGR2RGB), 'RGB')
+        # Apply mask, then slice to bounding box of mask
+        mask = np.dstack([mask] * 3).astype('float32') / 255.0
+        im = (mask * im.astype('float32')).astype('uint8')[x:x+w, y:y+h]
+
+        # Convert back to PIL
+        im = Image.fromarray(cv2.cvtColor(im, cv2.COLOR_BGR2RGB), 'RGB')
 
     width, height = im.size
     aspect_ratio = width / height
     target_ratio = target_dims[0] / target_dims[1]
 
     if aspect_ratio != target_ratio:
-        # If image is wider than target dims, add a black bar to the bottom
+        # If image is wider than target dims...
         if aspect_ratio > target_ratio:
-            background = Image.new('RGB', (width, target_dims[1]), (0, 0, 0))
-            background.paste(im, (0, 0))
+            if letterboxing:
+                # Add a black bar to the bottom
+                background = Image.new('RGB', (width, target_dims[1]), (0, 0, 0))
+                background.paste(im, (0, 0))
+                im = background
 
-            im = background
+            else:
+                mult = height / target_dims[1]
+                x_off = int((width - target_dims[0] * mult) / 2)
+                im = im.crop((x_off, 0, x_off + target_dims[0] * mult, target_dims[1] * mult))
 
         # Image is thinner than target dims, crop out top/bottom bars
         else:
@@ -147,7 +155,9 @@ if __name__ == '__main__':
             pil_image = Image.open(BytesIO(record['image']))
 
             try:
-                preprocess(pil_image, (192, 256), debug=True)
+                im = preprocess(pil_image, (192, 256), mask=False, letterboxing=False, debug=False)
+
+                cv2.imshow("preprocessed", cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR))
                 cv2.waitKey()
             except ValueError as err:
                 print(err)

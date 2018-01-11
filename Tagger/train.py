@@ -33,11 +33,14 @@ mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
 
 # To create a new model, edit the default_config.json, then run with your 'model_name'
-model_name = 'sixth_gradient_descent'
+model_name = 'seventh_gradient_descent'
 save_path = os.path.dirname(os.path.realpath(__file__)) + '\\saved\\' + model_name + '\\'
 save = True
 
 labels = json.load(open('labels.json'))
+
+pixel_mean = np.load('pixel_mean.npy')
+pixel_deviance = np.load('pixel_deviation.npy')
 
 with tf.Session() as sess:
     # Load configs
@@ -82,7 +85,8 @@ with tf.Session() as sess:
         stim_list = []
         for binary in binaries:
             img = preprocess(Image.open(BytesIO(binary)), config['image_shape'])
-            stim_list.append(np.transpose(np.array(img), axes=(1, 0, 2)))
+            normalized = (np.array(img) - pixel_mean) / pixel_deviance
+            stim_list.append(np.transpose(normalized, axes=(1, 0, 2)))
         stim = np.stack(stim_list)
 
         # Convert a text label to a onehot encoding
@@ -117,8 +121,11 @@ with tf.Session() as sess:
                 network.expected[label]: expected
             })
 
+            img = preprocess(Image.open(BytesIO(example['image'])), config['image_shape'], mask=False, letterboxing=False)
+            standard = (img - pixel_mean) / pixel_deviance
+
             prediction = sess.run(network.predict[label], feed_dict={
-                network.stimulus: np.transpose(preprocess(Image.open(BytesIO(example['image'])), config['image_shape']), axes=(1, 0, 2))[None]
+                network.stimulus: np.transpose(standard, axes=(1, 0, 2))[None]
             })[0]
 
             expectation = np.eye(network.classifications[label])[labels[label].index(example[label])]
