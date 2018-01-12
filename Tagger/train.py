@@ -33,7 +33,7 @@ mongo_client = MongoClient(host='localhost', port=27017)  # Default port
 db = mongo_client.deep_fashion
 
 # To create a new model, edit the default_config.json, then run with your 'model_name'
-model_name = 'seventh_gradient_descent'
+model_name = 'eighth_gradient_descent'
 save_path = os.path.dirname(os.path.realpath(__file__)) + '\\saved\\' + model_name + '\\'
 save = True
 
@@ -121,7 +121,9 @@ with tf.Session() as sess:
                 network.expected[label]: expected
             })
 
-            img = preprocess(Image.open(BytesIO(example['image'])), config['image_shape'], mask=False, letterboxing=False)
+            img = preprocess(Image.open(BytesIO(example['image'])), config['image_shape'],
+                             mask=config['mask'],
+                             letterboxing=config['letterbox'])
             standard = (img - pixel_mean) / pixel_deviance
 
             prediction = sess.run(network.predict[label], feed_dict={
@@ -171,10 +173,16 @@ with tf.Session() as sess:
     def update():
         label = random.choice(list(labels.keys()))
 
-        query = [{"$match": {label: {"$exists": True}}},
-                 {"$project": {'image': 1, label: 1}},
-                 {"$sample": {"size": config['batch_size']}}]
-        data = db.ebay.aggregate(query)
+        # nonparametric bootstrap to balance the frequencies of each label
+        rand = np.random.rand(len(labels[label]))
+        partition = (rand / rand.sum() * config['batch_size']).astype(int)
+
+        data = []
+        for key, quantity in zip(labels[label], partition):
+            query = [{"$match": {label: key}},
+                     {"$project": {"image": 1, label: 1}},
+                     {"$sample": {"size": int(quantity)}}]
+            data.extend(list(db.ebay.aggregate(query)))
 
         try:
             # Batch gradient update

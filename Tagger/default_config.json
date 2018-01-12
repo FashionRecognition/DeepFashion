@@ -1,12 +1,14 @@
 {
   "image_shape": [192, 256],
-  "batch_size": 16,
+  "batch_size": 32,
   "keep_prob": 0.8,
   "step_size": 1.0,
   "weight_decay": 0.0005,
   "gradient_norm": 2.0,
+  "mask": false,
+  "letterbox": false,
 
   "frequency": 100,
-  "epsilon": 5,
+  "epsilon": 4,
   "plot": true
 }
